@@ -1,6 +1,6 @@
 # Project Setup
 
-This project requires **Python 3.13** or later.
+This project requires **Python 3.12** or later.
 
 ## Prerequisites
 
