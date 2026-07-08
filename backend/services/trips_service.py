@@ -4,7 +4,7 @@ recommended_places = ["Tokyo Tower", "Shibuya", "Mount Fuji", "Kyoto Temples"]
 print(f"Recommended Places : {recommended_places}")
 for place in recommended_places:
   print(f"- {place}")
-  
+
 def calculate_daily_budget(budget, days):
   return budget/days
 
@@ -25,3 +25,11 @@ def get_transportation_recommendation(category):
     return "Flight"
   else:
     return "Public Transport"
+
+def get_travel_season(month):
+  if month == "December":
+    return "Peak Season"
+  elif month == "June":
+    return "Holiday Season"
+  else:
+    return "Regular Season"

@@ -2,31 +2,19 @@
 # KelanaAI - Part 6
 # Organizing the project
 # =========================
-from services.trips_service import calculate_daily_budget, get_trip_category
-
-destinations = []
-
-for i in range(2):
-    name = input(f"Enter destination {i + 1}: ")
-    destinations.append(name)
-
-print(destinations)
+from services.trips_service import calculate_daily_budget, get_trip_category, get_transportation_recommendation, get_travel_season
 
 destination  = "Japan"
 days         = 5
 budget       = 1500
 travel_style = "Family"
-
-# A list holds multiple values
-recommended_places = ["Tokyo Tower", "Shibuya", "Mount Fuji", "Kyoto Temples"]
-# Loop through the list
-print(f"Recommended Places : {recommended_places}")
-for place in recommended_places:
-  print(f"- {place}")
+travel_month = "December"
 
 # Call them
 daily_budget = calculate_daily_budget(budget, days)
 category = get_trip_category(budget)
-print(f"{category} · {daily_budget} USD/day")
+transportation = get_transportation_recommendation(category)
+travel_season = get_travel_season(travel_month)
 
+print(f"{category} · {transportation} · {daily_budget} USD/day · {travel_season}")
 # ====== END Part 6 ======
