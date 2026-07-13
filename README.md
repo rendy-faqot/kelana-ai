@@ -82,7 +82,8 @@ pip install -r requirements.txt
 ### 6. Run the application
 
 ```powershell
-python main.py
+cd backend
+uvicorn main:app --reload
 ```
 
 ---
@@ -135,13 +136,15 @@ pip install -r requirements.txt
 ### 6. Run the application
 
 ```bash
-python main.py
+cd backend
+uvicorn main:app --reload
 ```
 
 If `python` is not available:
 
 ```bash
-python3 main.py
+cd backend
+python3 -m uvicorn main:app --reload
 ```
 
 ---
@@ -191,13 +194,15 @@ pip install -r requirements.txt
 ### 6. Run the application
 
 ```bash
-python main.py
+cd backend
+uvicorn main:app --reload
 ```
 
 or
 
 ```bash
-python3 main.py
+cd backend
+python3 -m uvicorn main:app --reload
 ```
 
 ---
