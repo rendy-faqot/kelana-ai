@@ -7,6 +7,7 @@ import { TripCard } from "@/components/TripCard";
 import type { Trip } from "@/services/tripService";
 
 type SortOption = "latest" | "oldest" | "highest-budget";
+const PAGE_SIZE = 10;
 
 const tripTime = (trip: Trip) => {
   if (trip.created_at) {
@@ -36,6 +37,7 @@ const searchText = (trip: Trip) =>
 export function TripsBrowser({ trips }: { trips: Trip[] }) {
   const [query, setQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortOption>("latest");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const visibleTrips = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -55,6 +57,22 @@ export function TripsBrowser({ trips }: { trips: Trip[] }) {
       return tripTime(b) - tripTime(a);
     });
   }, [query, sortBy, trips]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleTrips.length / PAGE_SIZE));
+  const pageStart = (currentPage - 1) * PAGE_SIZE;
+  const paginatedTrips = visibleTrips.slice(pageStart, pageStart + PAGE_SIZE);
+  const firstVisibleTrip = visibleTrips.length > 0 ? pageStart + 1 : 0;
+  const lastVisibleTrip = Math.min(pageStart + PAGE_SIZE, visibleTrips.length);
+
+  const handleQueryChange = (value: string) => {
+    setQuery(value);
+    setCurrentPage(1);
+  };
+
+  const handleSortChange = (value: SortOption) => {
+    setSortBy(value);
+    setCurrentPage(1);
+  };
 
   return (
     <section className="rounded-[2rem] border border-sky-100 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
@@ -87,7 +105,7 @@ export function TripsBrowser({ trips }: { trips: Trip[] }) {
                 id="trip-search"
                 type="search"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
+                onChange={(event) => handleQueryChange(event.target.value)}
                 placeholder="Search destination, category, style, budget..."
                 className="w-full rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:bg-white"
               />
@@ -103,7 +121,7 @@ export function TripsBrowser({ trips }: { trips: Trip[] }) {
               <select
                 id="trip-sort"
                 value={sortBy}
-                onChange={(event) => setSortBy(event.target.value as SortOption)}
+                onChange={(event) => handleSortChange(event.target.value as SortOption)}
                 className="w-full rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-sky-500 focus:bg-white"
               >
                 <option value="latest">Latest</option>
@@ -114,11 +132,42 @@ export function TripsBrowser({ trips }: { trips: Trip[] }) {
           </div>
 
           {visibleTrips.length > 0 ? (
-            <div className="space-y-4">
-              {visibleTrips.map((trip) => (
-                <TripCard key={trip.id} trip={trip} />
-              ))}
-            </div>
+            <>
+              <div className="space-y-4">
+                {paginatedTrips.map((trip) => (
+                  <TripCard key={trip.id} trip={trip} />
+                ))}
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3 border-t border-sky-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-slate-500">
+                  Showing {firstVisibleTrip}-{lastVisibleTrip} of {visibleTrips.length}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                    disabled={currentPage === 1}
+                    className="inline-flex items-center justify-center rounded-full border border-sky-100 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCurrentPage((page) => Math.min(totalPages, page + 1))
+                    }
+                    disabled={currentPage === totalPages}
+                    className="inline-flex items-center justify-center rounded-full border border-sky-100 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-sky-200 hover:bg-sky-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
           ) : (
             <div className="rounded-[1.5rem] border border-dashed border-sky-200 bg-sky-50 px-6 py-10 text-center">
               <h3 className="text-lg font-semibold text-slate-900">
