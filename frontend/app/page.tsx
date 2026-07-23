@@ -1,369 +1,228 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-type Status = 'idle' | 'loading' | 'success' | 'error';
+import { generateTrip } from "@/services/tripService";
 
-type TripResponse = {
-  id?: number;
-  destination?: string;
-  days?: number;
-  budget?: number;
-  category?: string;
-  daily_budget?: number;
-  ai_recommendation?: string | null;
-};
+type Status = "idle" | "loading" | "success" | "error";
 
 export default function Home() {
+  const router = useRouter();
   const [form, setForm] = useState({
-    destination: '',
-    budget: '',
-    days: '',
-    travel_style: '',
+    destination: "",
+    budget: "",
+    days: "",
+    travel_style: "",
   });
-  const [status, setStatus] = useState<Status>('idle');
-  const [message, setMessage] = useState('');
-  const [trip, setTrip] = useState<TripResponse | null>(null);
+  const [status, setStatus] = useState<Status>("idle");
+  const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validate = () => {
     const nextErrors: Record<string, string> = {};
 
     if (!form.destination.trim()) {
-      nextErrors.destination = 'Destination is required.';
+      nextErrors.destination = "Destination is required.";
     }
     if (!form.budget) {
-      nextErrors.budget = 'Budget is required.';
+      nextErrors.budget = "Budget is required.";
     } else if (Number(form.budget) <= 0) {
-      nextErrors.budget = 'Budget must be greater than 0.';
+      nextErrors.budget = "Budget must be greater than 0.";
     }
     if (!form.days) {
-      nextErrors.days = 'Days is required.';
+      nextErrors.days = "Days is required.";
     } else if (Number(form.days) <= 0) {
-      nextErrors.days = 'Days must be greater than 0.';
+      nextErrors.days = "Days must be greater than 0.";
     }
     if (!form.travel_style.trim()) {
-      nextErrors.travel_style = 'Travel style is required.';
+      nextErrors.travel_style = "Travel style is required.";
     }
 
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setForm({ ...form, [name]: value });
-    setErrors((prev) => ({ ...prev, [name]: '' }));
+    setErrors((prev) => ({ ...prev, [name]: "" }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!validate()) {
-      setStatus('error');
-      setMessage('Please fix the highlighted fields and try again.');
+      setStatus("error");
+      setMessage("Please fix the highlighted fields and try again.");
       return;
     }
 
-    setStatus('loading');
-    setMessage('');
-    setTrip(null);
+    setStatus("loading");
+    setMessage("");
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/v1/trips`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            destination: form.destination,
-            budget: Number(form.budget),
-            days: Number(form.days),
-            travel_style: form.travel_style,
-          }),
-        }
-      );
+      const data = await generateTrip({
+        destination: form.destination,
+        budget: Number(form.budget),
+        days: Number(form.days),
+        travel_style: form.travel_style,
+      });
 
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(
-          data?.detail || 'Unable to generate your trip right now. Please try again.'
-        );
-      }
-
-      setStatus('success');
-      setTrip(data as TripResponse);
+      setStatus("success");
       setMessage(`Trip created successfully for ${data.destination || form.destination}.`);
+      router.push("/trips");
     } catch (error) {
-      setStatus('error');
+      setStatus("error");
       setMessage(
         error instanceof Error
           ? error.message
-          : 'Something went wrong while connecting to the server. Please try again.'
+          : "Something went wrong while connecting to the server. Please try again."
       );
     }
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-sky-50 px-4 py-8 font-sans text-slate-800">
-      <div className="w-full max-w-2xl rounded-3xl border border-sky-100 bg-white p-8 shadow-[0_12px_40px_rgba(2,132,199,0.12)]">
-        <div className="mb-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.25em] text-sky-600">
-            Kelana AI
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold text-slate-900">
-            Plan your trip with AI
-          </h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Fill in your travel details and let us generate a trip idea for you.
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
+      <div className="mx-auto flex max-w-5xl flex-col gap-8">
+        <header className="flex flex-col gap-4 rounded-[2rem] border border-sky-100 bg-white/80 px-6 py-6 shadow-sm sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Destination
-            </label>
-            <input
-              name="destination"
-              value={form.destination}
-              onChange={handleChange}
-              required
-              className={`w-full rounded-xl border px-3 py-2.5 outline-none transition focus:bg-white ${
-                errors.destination
-                  ? 'border-rose-300 bg-rose-50'
-                  : 'border-sky-200 bg-sky-50 focus:border-sky-500'
-              }`}
-            />
-            {errors.destination ? (
-              <p className="mt-1 text-sm text-rose-600">{errors.destination}</p>
-            ) : null}
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-600">
+              KelanaAI
+            </p>
+            <h1 className="mt-3 text-3xl font-semibold text-slate-900 sm:text-4xl">
+              Plan your trip with AI
+            </h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Fill in your travel details and generate a markdown itinerary.
+            </p>
           </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Budget
-            </label>
-            <input
-              type="number"
-              name="budget"
-              value={form.budget}
-              onChange={handleChange}
-              required
-              className={`w-full rounded-xl border px-3 py-2.5 outline-none transition focus:bg-white ${
-                errors.budget
-                  ? 'border-rose-300 bg-rose-50'
-                  : 'border-sky-200 bg-sky-50 focus:border-sky-500'
-              }`}
-            />
-            {errors.budget ? (
-              <p className="mt-1 text-sm text-rose-600">{errors.budget}</p>
-            ) : null}
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Days
-            </label>
-            <input
-              type="number"
-              name="days"
-              value={form.days}
-              onChange={handleChange}
-              required
-              className={`w-full rounded-xl border px-3 py-2.5 outline-none transition focus:bg-white ${
-                errors.days
-                  ? 'border-rose-300 bg-rose-50'
-                  : 'border-sky-200 bg-sky-50 focus:border-sky-500'
-              }`}
-            />
-            {errors.days ? (
-              <p className="mt-1 text-sm text-rose-600">{errors.days}</p>
-            ) : null}
-          </div>
-
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">
-              Travel Style
-            </label>
-            <input
-              name="travel_style"
-              value={form.travel_style}
-              onChange={handleChange}
-              required
-              className={`w-full rounded-xl border px-3 py-2.5 outline-none transition focus:bg-white ${
-                errors.travel_style
-                  ? 'border-rose-300 bg-rose-50'
-                  : 'border-sky-200 bg-sky-50 focus:border-sky-500'
-              }`}
-            />
-            {errors.travel_style ? (
-              <p className="mt-1 text-sm text-rose-600">{errors.travel_style}</p>
-            ) : null}
-          </div>
-
-          <button
-            type="submit"
-            disabled={status === 'loading'}
-            className="flex w-full transform items-center justify-center rounded-xl bg-sky-600 px-4 py-3 font-medium text-white transition duration-200 hover:-translate-y-0.5 hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-70"
+          <Link
+            href="/trips"
+            className="inline-flex w-fit items-center justify-center rounded-3xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-sky-50 hover:text-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-100"
           >
-            {status === 'loading' ? (
-              <>
-                <svg
-                  className="mr-2 h-4 w-4 animate-spin"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    fill="currentColor"
-                  />
-                </svg>
-                Generating...
-              </>
-            ) : (
-              'Generate AI Trip'
-            )}
-          </button>
-        </form>
+            Trip History
+          </Link>
+        </header>
 
-        {message ? (
-          <div
-            className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
-              status === 'error'
-                ? 'border-rose-200 bg-rose-50 text-rose-700'
-                : 'border-emerald-200 bg-emerald-50 text-emerald-700'
-            }`}
+        <section className="mx-auto w-full max-w-2xl">
+          <form
+            onSubmit={handleSubmit}
+            className="rounded-[2rem] border border-sky-100 bg-white p-6 shadow-[0_18px_50px_rgba(15,23,42,0.05)]"
           >
-            {message}
-          </div>
-        ) : null}
+            <div className="mb-6">
+              <h2 className="text-2xl font-semibold text-slate-900">Trip Details</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                The API will generate and save your AI recommendation.
+              </p>
+            </div>
 
-        {trip ? (
-          <div className="mt-6 rounded-2xl border border-sky-100 bg-sky-50 p-4">
-            <h2 className="text-lg font-semibold text-slate-900">Trip Details</h2>
-            <ul className="mt-3 space-y-2 text-sm text-slate-700">
-              <li>
-                <span className="font-medium">Destination:</span> {trip.destination}
-              </li>
-              <li>
-                <span className="font-medium">Days:</span> {trip.days}
-              </li>
-              <li>
-                <span className="font-medium">Budget:</span> {trip.budget}
-              </li>
-              <li>
-                <span className="font-medium">Category:</span> {trip.category}
-              </li>
-              <li>
-                <span className="font-medium">Daily Budget:</span> {trip.daily_budget}
-              </li>
-            </ul>
-            {trip.ai_recommendation ? (
-              <section className="mt-5 rounded-xl border border-white/80 bg-white p-4 shadow-sm">
-                <h3 className="text-base font-semibold text-slate-900">
-                  AI Recommendation
-                </h3>
-                <div className="mt-3 text-sm leading-6 text-slate-700">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      h1: ({ children }) => (
-                        <h4 className="mb-3 mt-4 text-lg font-semibold text-slate-950 first:mt-0">
-                          {children}
-                        </h4>
-                      ),
-                      h2: ({ children }) => (
-                        <h4 className="mb-3 mt-4 text-base font-semibold text-slate-950 first:mt-0">
-                          {children}
-                        </h4>
-                      ),
-                      h3: ({ children }) => (
-                        <h4 className="mb-2 mt-3 text-sm font-semibold text-slate-950 first:mt-0">
-                          {children}
-                        </h4>
-                      ),
-                      p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
-                      ul: ({ children }) => (
-                        <ul className="mb-3 list-disc space-y-1 pl-5 last:mb-0">
-                          {children}
-                        </ul>
-                      ),
-                      ol: ({ children }) => (
-                        <ol className="mb-3 list-decimal space-y-1 pl-5 last:mb-0">
-                          {children}
-                        </ol>
-                      ),
-                      li: ({ children }) => <li className="pl-1">{children}</li>,
-                      strong: ({ children }) => (
-                        <strong className="font-semibold text-slate-900">{children}</strong>
-                      ),
-                      a: ({ children, href }) => (
-                        <a
-                          href={href}
-                          className="font-medium text-sky-700 underline decoration-sky-300 underline-offset-2 hover:text-sky-900"
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {children}
-                        </a>
-                      ),
-                      blockquote: ({ children }) => (
-                        <blockquote className="mb-3 border-l-4 border-sky-200 pl-3 italic text-slate-600 last:mb-0">
-                          {children}
-                        </blockquote>
-                      ),
-                      code: ({ children }) => (
-                        <code className="rounded bg-slate-100 px-1.5 py-0.5 text-[0.85em] text-slate-900">
-                          {children}
-                        </code>
-                      ),
-                      pre: ({ children }) => (
-                        <pre className="mb-3 overflow-x-auto rounded-lg bg-slate-950 p-3 text-slate-100 last:mb-0">
-                          {children}
-                        </pre>
-                      ),
-                      table: ({ children }) => (
-                        <div className="mb-3 overflow-x-auto last:mb-0">
-                          <table className="min-w-full border-collapse text-left">
-                            {children}
-                          </table>
-                        </div>
-                      ),
-                      th: ({ children }) => (
-                        <th className="border border-slate-200 bg-slate-50 px-3 py-2 font-semibold text-slate-900">
-                          {children}
-                        </th>
-                      ),
-                      td: ({ children }) => (
-                        <td className="border border-slate-200 px-3 py-2">{children}</td>
-                      ),
-                    }}
-                  >
-                    {trip.ai_recommendation}
-                  </ReactMarkdown>
-                </div>
-              </section>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Destination
+                </label>
+                <input
+                  name="destination"
+                  value={form.destination}
+                  onChange={handleChange}
+                  required
+                  className={`w-full rounded-xl border px-3 py-2.5 outline-none transition focus:bg-white ${
+                    errors.destination
+                      ? "border-rose-300 bg-rose-50"
+                      : "border-sky-200 bg-sky-50 focus:border-sky-500"
+                  }`}
+                />
+                {errors.destination ? (
+                  <p className="mt-1 text-sm text-rose-600">{errors.destination}</p>
+                ) : null}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Budget
+                </label>
+                <input
+                  type="number"
+                  name="budget"
+                  value={form.budget}
+                  onChange={handleChange}
+                  required
+                  className={`w-full rounded-xl border px-3 py-2.5 outline-none transition focus:bg-white ${
+                    errors.budget
+                      ? "border-rose-300 bg-rose-50"
+                      : "border-sky-200 bg-sky-50 focus:border-sky-500"
+                  }`}
+                />
+                {errors.budget ? (
+                  <p className="mt-1 text-sm text-rose-600">{errors.budget}</p>
+                ) : null}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Days
+                </label>
+                <input
+                  type="number"
+                  name="days"
+                  value={form.days}
+                  onChange={handleChange}
+                  required
+                  className={`w-full rounded-xl border px-3 py-2.5 outline-none transition focus:bg-white ${
+                    errors.days
+                      ? "border-rose-300 bg-rose-50"
+                      : "border-sky-200 bg-sky-50 focus:border-sky-500"
+                  }`}
+                />
+                {errors.days ? (
+                  <p className="mt-1 text-sm text-rose-600">{errors.days}</p>
+                ) : null}
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">
+                  Travel Style
+                </label>
+                <input
+                  name="travel_style"
+                  value={form.travel_style}
+                  onChange={handleChange}
+                  required
+                  className={`w-full rounded-xl border px-3 py-2.5 outline-none transition focus:bg-white ${
+                    errors.travel_style
+                      ? "border-rose-300 bg-rose-50"
+                      : "border-sky-200 bg-sky-50 focus:border-sky-500"
+                  }`}
+                />
+                {errors.travel_style ? (
+                  <p className="mt-1 text-sm text-rose-600">{errors.travel_style}</p>
+                ) : null}
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={status === "loading"}
+              className="mt-6 inline-flex w-full items-center justify-center rounded-full bg-sky-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-200 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {status === "loading" ? "Generating..." : "Generate AI Trip"}
+            </button>
+
+            {message ? (
+              <div
+                className={`mt-4 rounded-xl border px-4 py-3 text-sm ${
+                  status === "error"
+                    ? "border-rose-200 bg-rose-50 text-rose-700"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                {message}
+              </div>
             ) : null}
-          </div>
-        ) : null}
+          </form>
+        </section>
       </div>
     </main>
   );
