@@ -98,12 +98,20 @@ export default function Home() {
               Fill in your travel details and generate a markdown itinerary.
             </p>
           </div>
-          <Link
-            href="/trips"
-            className="inline-flex w-fit items-center justify-center rounded-3xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-sky-50 hover:text-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-100"
-          >
-            Trip History
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/login"
+              className="inline-flex w-fit items-center justify-center rounded-3xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-100"
+            >
+              Login
+            </Link>
+            <Link
+              href="/trips"
+              className="inline-flex w-fit items-center justify-center rounded-3xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-sky-50 hover:text-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-100"
+            >
+              Trip History
+            </Link>
+          </div>
         </header>
 
         <section className="mx-auto w-full max-w-2xl">

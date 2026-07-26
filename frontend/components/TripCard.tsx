@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Trip } from "@/services/tripService";
 
 const formatCurrency = (value?: number) =>
-  typeof value === "number" ? `USD ${value.toLocaleString()}` : "Budget pending";
+  typeof value === "number" ? `IDR ${value.toLocaleString()}` : "Budget pending";
 
 export function TripCard({ trip }: { trip: Trip }) {
   const destination = trip.destination || "Untitled trip";

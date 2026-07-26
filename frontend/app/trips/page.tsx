@@ -1,8 +1,25 @@
-import { TripsBrowser } from "@/components/TripsBrowser";
-import { getTrips } from "@/services/tripService";
+"use client";
 
-export default async function TripsPage() {
-  const trips = await getTrips();
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import { LogoutButton } from "@/components/LogoutButton";
+import { TripsBrowser } from "@/components/TripsBrowser";
+import { getTrips, type Trip } from "@/services/tripService";
+
+export default function TripsPage() {
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function loadTrips() {
+      const data = await getTrips();
+      setTrips(data);
+      setIsLoading(false);
+    }
+
+    loadTrips();
+  }, []);
 
   return (
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
@@ -19,12 +36,27 @@ export default async function TripsPage() {
               Review your saved itineraries and open the AI-generated plan for each trip.
             </p>
           </div>
-          <div className="rounded-3xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm">
-            {trips.length} saved {trips.length === 1 ? "trip" : "trips"}
+          <div className="flex flex-wrap gap-3">
+            <div className="rounded-3xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm">
+              {isLoading ? "Loading..." : `${trips.length} saved ${trips.length === 1 ? "trip" : "trips"}`}
+            </div>
+            <Link
+              href="/profile"
+              className="inline-flex w-fit items-center justify-center rounded-3xl bg-sky-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-100"
+            >
+              Profile
+            </Link>
+            <LogoutButton />
           </div>
         </header>
 
-        <TripsBrowser trips={trips} />
+        {isLoading ? (
+          <section className="rounded-[2rem] border border-sky-100 bg-white p-6 text-sm text-slate-600 shadow-[0_18px_50px_rgba(15,23,42,0.05)]">
+            Loading trips...
+          </section>
+        ) : (
+          <TripsBrowser trips={trips} />
+        )}
       </div>
     </main>
   );

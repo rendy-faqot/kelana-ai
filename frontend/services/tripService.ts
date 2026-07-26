@@ -24,8 +24,22 @@ const API_BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").re
 )
 const API_URL = API_BASE.endsWith("/api/v1") ? API_BASE : `${API_BASE}/api/v1`
 
+function getAuthHeaders(): HeadersInit {
+  if (typeof window === "undefined") {
+    return {}
+  }
+
+  const token = localStorage.getItem("kelana_token")
+  const tokenType = localStorage.getItem("kelana_token_type") || "bearer"
+
+  return token ? { Authorization: `${tokenType} ${token}` } : {}
+}
+
 export async function getTrips(): Promise<Trip[]> {
-  const res = await fetch(`${API_URL}/trips`, { cache: "no-store" })
+  const res = await fetch(`${API_URL}/trips`, {
+    cache: "no-store",
+    headers: getAuthHeaders(),
+  })
   if (!res.ok) {
     return []
   }
@@ -33,7 +47,10 @@ export async function getTrips(): Promise<Trip[]> {
 }
 
 export async function getTrip(id: number): Promise<Trip | null> {
-  const res = await fetch(`${API_URL}/trips/${id}`, { cache: "no-store" })
+  const res = await fetch(`${API_URL}/trips/${id}`, {
+    cache: "no-store",
+    headers: getAuthHeaders(),
+  })
   if (!res.ok) {
     return null
   }
@@ -45,6 +62,7 @@ export async function generateTrip(data: GenerateTripPayload): Promise<Trip> {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(data),
   })

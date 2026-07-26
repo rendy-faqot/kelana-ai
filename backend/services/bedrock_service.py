@@ -34,7 +34,7 @@ def get_ai_recommendation(request):
         region_name=region
     )
 
-    prompt = f"Plan a {request.days}-day trip to {request.destination} with a budget of {request.budget} USD and a travel style of {request.travel_style}. Give the answer with markdown format."
+    prompt = f"Plan a {request.days}-day trip to {request.destination} with a budget of {request.budget} IDR and a travel style of {request.travel_style}. Give the answer with markdown format."
 
     # model_id = "arn:aws:bedrock:ap-southeast-2:837933860729:inference-profile/global.amazon.nova-2-lite-v1:0"
     response = client.converse(
