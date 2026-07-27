@@ -12,6 +12,7 @@ from services.bedrock_service import (
     get_ai_recommendation
 )
 from services.auth_service import get_current_user, login, oauth2_scheme, register
+from services.kb_service import retrieve_and_generate
 from models import Trip, User
 from database import SessionLocal, init_db
 from dotenv import load_dotenv
@@ -51,6 +52,16 @@ class TripRequest(BaseModel):
     days: int
     budget: float
     travel_style: str
+
+
+class AskRequest(BaseModel):
+    question: str
+
+
+class AskResponse(BaseModel):
+    question: str
+    answer: str
+    documents: list[str]
 
 
 class RegisterRequest(BaseModel):
@@ -140,6 +151,37 @@ def get_profile(token: str = Depends(oauth2_scheme)):
         )
     finally:
         db.close()
+
+
+@app.post("/api/v1/ask", response_model=AskResponse)
+def ask_knowledge_base(request: AskRequest):
+    try:
+        result = retrieve_and_generate(request.question)
+        return AskResponse(
+            question=request.question,
+            answer=result["answer"],
+            documents=result["documents"],
+        )
+    except ClientError as exc:
+        error = exc.response.get("Error", {})
+        metadata = exc.response.get("ResponseMetadata", {})
+        error_code = error.get("Code", "KnowledgeBaseError")
+        error_message = error.get("Message", "No error message returned")
+        request_id = metadata.get("RequestId", "unknown")
+        http_status = metadata.get("HTTPStatusCode", "unknown")
+
+        logger.exception(
+            "Knowledge Base request failed: code=%s message=%s request_id=%s http_status=%s",
+            error_code,
+            error_message,
+            request_id,
+            http_status,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Knowledge Base request failed: {error_code} - {error_message}",
+        ) from exc
 
 # FastAPI validates the JSON body against this model
 # If a field is missing or wrong type, it returns 422 automatically
