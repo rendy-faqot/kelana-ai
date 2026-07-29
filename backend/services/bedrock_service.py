@@ -52,3 +52,51 @@ def get_ai_recommendation(request):
     )
 
     return response["output"]["message"]["content"][0]["text"]
+
+
+def build_conversation_prompt(messages):
+    return [
+        {
+            "role": message.role,
+            "content": [
+                {
+                    "text": message.content
+                }
+            ]
+        }
+        for message in messages
+    ]
+
+
+def get_chat_response(messages):
+    region = os.getenv("AWS_REGION")
+    model_id = os.getenv("MODEL_ID")
+    _configure_bedrock_api_key()
+    print(f"Using Bedrock model ID: {model_id} in region: {region}")
+
+    missing_env = [
+        name for name, value in {
+            "AWS_REGION": region,
+            "MODEL_ID": model_id,
+        }.items()
+        if not value
+    ]
+
+    if missing_env:
+        raise RuntimeError(
+            f"Missing required Bedrock environment variable(s): {', '.join(missing_env)}"
+        )
+
+    client = boto3.client(
+        "bedrock-runtime",
+        region_name=region
+    )
+
+    prompt = build_conversation_prompt(messages)
+
+    response = client.converse(
+        modelId=model_id,
+        messages=prompt
+    )
+
+    return response["output"]["message"]["content"][0]["text"]

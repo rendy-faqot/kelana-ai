@@ -111,6 +111,12 @@ export default function Home() {
             >
               Trip History
             </Link>
+            <Link
+              href="/chat"
+              className="inline-flex w-fit items-center justify-center rounded-3xl bg-slate-100 px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-sky-50 hover:text-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-100"
+            >
+              Chat
+            </Link>
           </div>
         </header>
 

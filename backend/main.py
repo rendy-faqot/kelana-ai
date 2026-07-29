@@ -9,11 +9,12 @@ from services.trips_service import (
     get_trip_category
 )
 from services.bedrock_service import (
+    get_chat_response,
     get_ai_recommendation
 )
 from services.auth_service import get_current_user, login, oauth2_scheme, register
 from services.kb_service import retrieve_and_generate
-from models import Trip, User
+from models import Conversation, Message, Trip, User
 from database import SessionLocal, init_db
 from dotenv import load_dotenv
 
@@ -97,6 +98,39 @@ class MessageResponse(BaseModel):
     message: str
 
 
+class CreateConversationRequest(BaseModel):
+    title: str | None = None
+
+
+class CreateConversationResponse(BaseModel):
+    conversation_id: int
+
+
+class UpdateConversationRequest(BaseModel):
+    title: str
+
+
+class ConversationResponse(BaseModel):
+    id: int
+    title: str | None
+    created_at: str
+
+
+class SendMessageRequest(BaseModel):
+    message: str
+
+
+class SendMessageResponse(BaseModel):
+    response: str
+
+
+class ChatMessageResponse(BaseModel):
+    id: int
+    role: str
+    content: str
+    created_at: str
+
+
 @app.post("/api/v1/auth/register", status_code=status.HTTP_201_CREATED)
 def register_user(request: RegisterRequest):
     try:
@@ -149,6 +183,221 @@ def get_profile(token: str = Depends(oauth2_scheme)):
             email=user.email,
             total_trips=total_trips,
         )
+    finally:
+        db.close()
+
+
+@app.post(
+    "/api/v1/conversations",
+    response_model=CreateConversationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_conversation(
+        request: CreateConversationRequest | None = None,
+        token: str = Depends(oauth2_scheme),
+    ):
+    user = get_current_user(token)
+    conversation = Conversation(
+        user_id=user.id,
+        title=request.title if request else None,
+    )
+
+    db = SessionLocal()
+    try:
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
+        return CreateConversationResponse(conversation_id=conversation.id)
+    finally:
+        db.close()
+
+
+@app.get("/api/v1/conversations", response_model=list[ConversationResponse])
+def list_conversations(token: str = Depends(oauth2_scheme)):
+    user = get_current_user(token)
+    db = SessionLocal()
+    try:
+        conversations = (
+            db.query(Conversation)
+            .filter(Conversation.user_id == user.id)
+            .order_by(Conversation.created_at.desc())
+            .all()
+        )
+        return [
+            ConversationResponse(
+                id=conversation.id,
+                title=conversation.title,
+                created_at=conversation.created_at.isoformat(),
+            )
+            for conversation in conversations
+        ]
+    finally:
+        db.close()
+
+
+@app.patch("/api/v1/conversations/{id}", response_model=ConversationResponse)
+def update_conversation(
+        id: int,
+        request: UpdateConversationRequest,
+        token: str = Depends(oauth2_scheme),
+    ):
+    user = get_current_user(token)
+    db = SessionLocal()
+
+    try:
+        conversation = (
+            db.query(Conversation)
+            .filter(
+                Conversation.id == id,
+                Conversation.user_id == user.id,
+            )
+            .first()
+        )
+        if conversation is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found",
+            )
+
+        title = request.title.strip()
+        if not title:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Conversation title cannot be empty",
+            )
+
+        conversation.title = title
+        db.commit()
+        db.refresh(conversation)
+
+        return ConversationResponse(
+            id=conversation.id,
+            title=conversation.title,
+            created_at=conversation.created_at.isoformat(),
+        )
+    finally:
+        db.close()
+
+
+@app.get(
+    "/api/v1/conversations/{id}/messages",
+    response_model=list[ChatMessageResponse],
+)
+def list_conversation_messages(
+        id: int,
+        token: str = Depends(oauth2_scheme),
+    ):
+    user = get_current_user(token)
+    db = SessionLocal()
+
+    try:
+        conversation = (
+            db.query(Conversation)
+            .filter(
+                Conversation.id == id,
+                Conversation.user_id == user.id,
+            )
+            .first()
+        )
+        if conversation is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found",
+            )
+
+        messages = (
+            db.query(Message)
+            .filter(Message.conversation_id == conversation.id)
+            .order_by(Message.created_at.asc(), Message.id.asc())
+            .all()
+        )
+
+        return [
+            ChatMessageResponse(
+                id=message.id,
+                role=message.role,
+                content=message.content,
+                created_at=message.created_at.isoformat(),
+            )
+            for message in messages
+        ]
+    finally:
+        db.close()
+
+
+@app.post(
+    "/api/v1/conversations/{id}/messages",
+    response_model=SendMessageResponse,
+)
+def send_message(
+        id: int,
+        request: SendMessageRequest,
+        token: str = Depends(oauth2_scheme),
+    ):
+    user = get_current_user(token)
+    db = SessionLocal()
+
+    try:
+        conversation = (
+            db.query(Conversation)
+            .filter(
+                Conversation.id == id,
+                Conversation.user_id == user.id,
+            )
+            .first()
+        )
+        if conversation is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Conversation not found",
+            )
+
+        user_message = Message(
+            conversation_id=conversation.id,
+            role="user",
+            content=request.message,
+        )
+        db.add(user_message)
+        db.commit()
+
+        messages = (
+            db.query(Message)
+            .filter(Message.conversation_id == conversation.id)
+            .order_by(Message.created_at.asc(), Message.id.asc())
+            .all()
+        )
+
+        ai_response = get_chat_response(messages)
+        assistant_message = Message(
+            conversation_id=conversation.id,
+            role="assistant",
+            content=ai_response,
+        )
+        db.add(assistant_message)
+        db.commit()
+
+        return SendMessageResponse(response=ai_response)
+    except ClientError as exc:
+        db.rollback()
+        error = exc.response.get("Error", {})
+        metadata = exc.response.get("ResponseMetadata", {})
+        error_code = error.get("Code", "BedrockError")
+        error_message = error.get("Message", "No error message returned")
+        request_id = metadata.get("RequestId", "unknown")
+        http_status = metadata.get("HTTPStatusCode", "unknown")
+
+        logger.exception(
+            "Bedrock chat request failed: code=%s message=%s request_id=%s http_status=%s",
+            error_code,
+            error_message,
+            request_id,
+            http_status,
+        )
+
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Bedrock request failed: {error_code} - {error_message}",
+        ) from exc
     finally:
         db.close()
 

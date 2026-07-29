@@ -42,13 +42,21 @@ export default function ProfilePage() {
     <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
       <div className="mx-auto flex max-w-5xl flex-col gap-8">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link
-            href="/trips"
-            className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-100 bg-white px-4 py-2 text-sm font-semibold text-sky-700 shadow-sm transition hover:border-sky-200 hover:bg-sky-50 focus:outline-none focus:ring-4 focus:ring-sky-100"
-          >
-            <span aria-hidden="true">←</span>
-            Back to trips
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/trips"
+              className="inline-flex w-fit items-center gap-2 rounded-full border border-sky-100 bg-white px-4 py-2 text-sm font-semibold text-sky-700 shadow-sm transition hover:border-sky-200 hover:bg-sky-50 focus:outline-none focus:ring-4 focus:ring-sky-100"
+            >
+              <span aria-hidden="true">←</span>
+              Back to trips
+            </Link>
+            <Link
+              href="/chat"
+              className="inline-flex w-fit items-center justify-center rounded-full border border-sky-100 bg-white px-4 py-2 text-sm font-semibold text-sky-700 shadow-sm transition hover:border-sky-200 hover:bg-sky-50 focus:outline-none focus:ring-4 focus:ring-sky-100"
+            >
+              Chat
+            </Link>
+          </div>
           <LogoutButton />
         </div>
 
