@@ -1,4 +1,5 @@
 import logging
+import os
 
 from botocore.exceptions import ClientError
 from fastapi import Depends, FastAPI, HTTPException, Response, status
@@ -24,9 +25,16 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"^http://(localhost|127\.0\.0\.1):\d+$",
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"^(http://(localhost|127\.0\.0\.1):\d+|https://.*\.vercel\.app)$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
