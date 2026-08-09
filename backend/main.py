@@ -1,39 +1,51 @@
-# Now use them
-def print_trip_summary(
-  destination,
-  days,
-  budget,
-  travel_style,
-  hotel_cost,
-  food_cost,
-  transportation_cost,
-  miscellaneous_cost
-):
-  total_estimated_cost = (
-    hotel_cost
-    + food_cost
-    + transportation_cost
-    + miscellaneous_cost
-  )
+from services.trip_service import (
+  calculate_daily_budget,
+  get_recommended_places,
+  get_transportation_recommendation,
+  get_trip_category,
+)
 
-  print("========================")
-  print("KelanaAI")
-  print("========================")
-  print(f"Destination : {destination}")
-  print(f"Days        : {days}")
-  print(f"Budget      : {budget}")
-  print(f"Style       : {travel_style}")
-  print(f"Hotel Cost  : {hotel_cost}")
-  print(f"Food Cost   : {food_cost}")
-  print(f"Transport   : {transportation_cost}")
-  print(f"Misc Cost   : {miscellaneous_cost}")
-  print(f"Total Cost  : {total_estimated_cost}")
 
-  if total_estimated_cost > budget:
-    print("⚠️ Budget exceeded.")
+def print_destinations(destinations):
+  print("Your Destinations")
 
+  index = 0
+  while index < len(destinations):
+    print(f"{index + 1}. {destinations[index]}")
+    index += 1
+
+
+def print_recommended_places(destinations):
+  print("Recommended Places")
   print()
 
-# Call it with any trip
-print_trip_summary("Japan", 5, 1500, "Family", 900, 300, 250, 100)
-print_trip_summary("Bali", 3, 800, "Backpacker", 300, 150, 100, 75)
+  for destination in destinations:
+    print(destination)
+
+    for place in get_recommended_places(destination):
+      print(f"- {place}")
+
+    print()
+
+
+def print_trip_summary(destinations, days, budget):
+  daily_budget = calculate_daily_budget(budget, days)
+  category = get_trip_category(budget)
+  transportation = get_transportation_recommendation(category)
+
+  print("==============================")
+  print("KelanaAI")
+  print("==============================")
+  print()
+  print_destinations(destinations)
+  print()
+  print(f"Days         = {days}")
+  print(f"Budget       = {budget} USD")
+  print(f'Category     = "{category}"')
+  print(f"Daily Budget = {daily_budget:.0f} USD/Day")
+  print(f"Recommended Transportation: {transportation}")
+  print()
+  print_recommended_places(destinations)
+
+
+print_trip_summary(["Japan", "Korea"], 5, 1500)
