@@ -1,51 +1,48 @@
+from fastapi import FastAPI
+from pydantic import BaseModel
 from services.trip_service import (
-  calculate_daily_budget,
-  get_recommended_places,
-  get_transportation_recommendation,
-  get_trip_category,
+    calculate_daily_budget,
+    get_trip_category,
+    get_transportation_recommendation
 )
 
 
-def print_destinations(destinations):
-  print("Your Destinations")
+class TripRequest(BaseModel):
+	destination: 	str
+	days: 		    int
+	budget:		    float
+	travel_style:	str
 
-  index = 0
-  while index < len(destinations):
-    print(f"{index + 1}. {destinations[index]}")
-    index += 1
+app = FastAPI()
 
+# a GET endpoint for health
+@app.get("/health")
+def health():
+  return {
+    "status" : "OK"
+  }
 
-def print_recommended_places(destinations):
-  print("Recommended Places")
-  print()
+# a GET endpoint at the root path
+@app.get("/")
+def home():
+  return {
+    "message" : "Welcome to KelanaAI"
+  }
 
-  for destination in destinations:
-    print(destination)
-
-    for place in get_recommended_places(destination):
-      print(f"- {place}")
-
-    print()
-
-
-def print_trip_summary(destinations, days, budget):
-  daily_budget = calculate_daily_budget(budget, days)
-  category = get_trip_category(budget)
-  transportation = get_transportation_recommendation(category)
-
-  print("==============================")
-  print("KelanaAI")
-  print("==============================")
-  print()
-  print_destinations(destinations)
-  print()
-  print(f"Days         = {days}")
-  print(f"Budget       = {budget} USD")
-  print(f'Category     = "{category}"')
-  print(f"Daily Budget = {daily_budget:.0f} USD/Day")
-  print(f"Recommended Transportation: {transportation}")
-  print()
-  print_recommended_places(destinations)
-
-
-print_trip_summary(["Japan", "Korea"], 5, 1500)
+# POST endpoint — receives JSON, returns JSON
+@app.post("/api/v1/trips")
+def create_trip(request: TripRequest):
+    daily_budget = calculate_daily_budget(
+        request.budget, request.days
+    )
+    category = get_trip_category(
+        request.budget
+    )
+    recommendation_transport = get_transportation_recommendation(category)
+    return {
+        "destination" : request.destination,
+        "budget" : request.budget,
+        "daily_budget" : daily_budget,
+        "category" : category,
+        "recommendation_transport": recommendation_transport
+    }
