@@ -6,6 +6,7 @@ from services.trip_service import (
     get_trip_category,
     get_transportation_recommendation
 )
+from services.bedrock_service import get_ai_recommendation
 from models.trip import Trip
 from database import SessionLocal, init_db
 
@@ -47,13 +48,20 @@ def create_trip(request: TripRequest):
     category = get_trip_category(
         request.budget
     )
+    ai_recommendation = get_ai_recommendation(
+        destination=request.destination,
+        days=request.days,
+        budget=request.budget,
+        travel_style=request.travel_style,
+    )
     # create a Trip ORM object
     trip = Trip(
-        destination  = request.destination,
-        days         = request.days,
-        budget       = request.budget,
-        category     = category,
-        daily_budget = daily_budget,
+        destination       = request.destination,
+        days              = request.days,
+        budget            = request.budget,
+        category          = category,
+        daily_budget      = daily_budget,
+        ai_recommendation = ai_recommendation,
     )
 
     #save to PostgreSQL
