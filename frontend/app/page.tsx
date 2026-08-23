@@ -66,6 +66,8 @@ function parseDaySections(text: string): DaySection[] | null {
   return sections.length > 0 ? sections : null;
 }
 
+type View = "form" | "loading" | "result";
+
 export default function Home() {
   const [form, setForm] = useState({
     destination: "",
@@ -74,8 +76,8 @@ export default function Home() {
     travelStyle: "",
   });
   const [result, setResult] = useState<TripResult | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<View>("form");
 
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -85,9 +87,9 @@ export default function Home() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     setResult(null);
+    setView("loading");
 
     try {
       const res = await fetch("http://localhost:8000/api/v1/trips", {
@@ -108,13 +110,90 @@ export default function Home() {
 
       const data: TripResult = await res.json();
       setResult(data);
+      setView("result");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
-    } finally {
-      setLoading(false);
+      setView("form");
     }
   }
 
+  function handleReset() {
+    setResult(null);
+    setError(null);
+    setView("form");
+  }
+
+  /* ── Loading screen ─────────────────────────────────────── */
+  if (view === "loading") {
+    return (
+      <main className="min-h-screen flex flex-col items-center justify-center px-4 bg-[var(--background)]">
+        <h1 className="text-4xl font-bold text-[#2196F3] tracking-tight mb-10">
+          KelanaAI
+        </h1>
+        <div className="flex flex-col items-center gap-5">
+          {/* Spinner */}
+          <div className="w-12 h-12 rounded-full border-4 border-[#e3f0fd] border-t-[#2196F3] animate-spin" />
+          <p className="text-sm text-gray-400 tracking-wide">
+            Generating your itinerary…
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  /* ── Result screen ──────────────────────────────────────── */
+  if (view === "result" && result) {
+    return (
+      <main className="min-h-screen flex flex-col items-center px-4 py-16 bg-[var(--background)]">
+        {/* Header */}
+        <div className="mb-8 text-center">
+          <h1 className="text-4xl font-bold text-[#2196F3] tracking-tight">
+            KelanaAI
+          </h1>
+        </div>
+
+        <div className="w-full max-w-lg flex flex-col gap-4">
+          {/* Summary pill */}
+          <div className="rounded-full bg-[#f0f4f8] px-6 py-3 flex items-center justify-between shadow-sm gap-4">
+            <span className="font-bold text-[var(--foreground)] whitespace-nowrap">
+              Destination: {result.destination}
+            </span>
+            <span className="text-gray-300 select-none">|</span>
+            <span className="font-bold text-[#2196F3] whitespace-nowrap">
+              {form.travelStyle}
+            </span>
+            <span className="text-gray-300 select-none">|</span>
+            <span className="font-bold text-[var(--foreground)] whitespace-nowrap">
+              Budget: USD {result.budget.toLocaleString()}
+            </span>
+          </div>
+
+          {/* AI Recommendation */}
+          {result.ai_recommendation && (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold uppercase tracking-widest text-[#2196F3]">
+                  AI Recommendation
+                </span>
+                <div className="flex-1 border-t border-gray-200" />
+              </div>
+              <DayCards text={result.ai_recommendation} />
+            </div>
+          )}
+
+          {/* Plan another trip */}
+          <button
+            onClick={handleReset}
+            className="mt-2 w-full rounded-2xl border border-[#2196F3] text-[#2196F3] hover:bg-[#e3f0fd] active:bg-[#bbdefb] font-semibold text-sm tracking-wide py-4 transition-colors duration-150 shadow-sm cursor-pointer"
+          >
+            Plan another trip
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  /* ── Form screen (default) ──────────────────────────────── */
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4 py-16 bg-[var(--background)]">
       {/* Header */}
@@ -219,52 +298,16 @@ export default function Home() {
 
         <button
           type="submit"
-          disabled={loading}
-          className="mt-2 w-full rounded-2xl bg-[#2196F3] hover:bg-[#1976D2] active:bg-[#1565C0] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold text-sm tracking-wide py-4 transition-colors duration-150 shadow-sm cursor-pointer"
+          className="mt-2 w-full rounded-2xl bg-[#2196F3] hover:bg-[#1976D2] active:bg-[#1565C0] text-white font-semibold text-sm tracking-wide py-4 transition-colors duration-150 shadow-sm cursor-pointer"
         >
-          {loading ? "Generating…" : "Generate AI Trip"}
+          Generate AI Trip
         </button>
       </form>
 
-      {/* Error */}
+      {/* Inline error (only shown if API fails and we return to form) */}
       {error && (
         <div className="mt-6 w-full max-w-lg rounded-2xl bg-red-50 border border-red-200 px-5 py-4 text-sm text-red-600">
           {error}
-        </div>
-      )}
-
-      {/* Result */}
-      {result && (
-        <div className="mt-8 w-full max-w-lg flex flex-col gap-4">
-          {/* Summary pill */}
-          <div className="rounded-full bg-[#f0f4f8] px-6 py-3 flex items-center justify-between shadow-sm gap-4">
-            <span className="font-bold text-[var(--foreground)] whitespace-nowrap">
-              Destination: {result.destination}
-            </span>
-            <span className="text-gray-300 select-none">|</span>
-            <span className="font-bold text-[#2196F3] whitespace-nowrap">
-              {form.travelStyle}
-            </span>
-            <span className="text-gray-300 select-none">|</span>
-            <span className="font-bold text-[var(--foreground)] whitespace-nowrap">
-              Budget: USD {result.budget.toLocaleString()}
-            </span>
-          </div>
-
-          {/* AI Recommendation */}
-          {result.ai_recommendation && (
-            <div className="flex flex-col gap-3">
-              {/* Section header */}
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold uppercase tracking-widest text-[#2196F3]">
-                  AI Recommendation
-                </span>
-                <div className="flex-1 border-t border-gray-200" />
-              </div>
-
-              <DayCards text={result.ai_recommendation} />
-            </div>
-          )}
         </div>
       )}
     </main>
