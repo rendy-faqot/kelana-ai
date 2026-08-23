@@ -39,9 +39,6 @@ def get_bedrock_client():
     client = boto3.client(
         service_name="bedrock-runtime",
         region_name=AWS_REGION,
-        # aws_access_key_id="BEARER",        # placeholder required by boto3
-        # aws_secret_access_key="BEARER",    # placeholder required by boto3
-        # aws_session_token=AWS_BEARER_TOKEN_BEDROCK,
     )
     return client
 
