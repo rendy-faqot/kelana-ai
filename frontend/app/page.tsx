@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import ReactMarkdown from "react-markdown";
+import DayCards from "@/components/DayCards";
 
 const TRAVEL_STYLES = ["Solo", "Couple", "Family", "Group", "Business"];
 
@@ -15,56 +15,6 @@ type TripResult = {
   ai_recommendation: string;
   created_at: string;
 };
-
-type DaySection = {
-  title: string;
-  body: string;
-};
-
-/**
- * Split markdown into per-day sections.
- *
- * Handles common patterns the model produces:
- *   ## Day 1 – Tokyo Arrival
- *   **Day 1: Arrival**
- *   ### Day 1
- *
- * Returns null when no day headings are found so the caller can
- * fall back to rendering the whole text in one block.
- */
-function parseDaySections(text: string): DaySection[] | null {
-  // Match lines that start a new day: heading (#/##/###) OR bold (**Day N**)
-  const dayLineRe = /^(?:#{1,3}\s+|(?:\*\*))?(Day\s+\d+[^\n]*?)(?:\*\*)?$/im;
-
-  // Split on lines that match a day heading, keeping the delimiter
-  const parts = text.split(
-    /^((?:#{1,3}\s+)?(?:\*\*)?Day\s+\d+[^\n]*?(?:\*\*)?)$/gim
-  );
-
-  const sections: DaySection[] = [];
-  let i = 0;
-
-  // Skip any preamble before the first day
-  while (i < parts.length && !dayLineRe.test(parts[i])) i++;
-
-  while (i < parts.length - 1) {
-    const rawTitle = parts[i].trim();
-    const rawBody = (parts[i + 1] ?? "").trim();
-
-    if (dayLineRe.test(rawTitle)) {
-      // Strip markdown syntax from title so we can render it cleanly
-      const cleanTitle = rawTitle
-        .replace(/^#{1,3}\s+/, "")   // remove leading hashes
-        .replace(/^\*\*|\*\*$/g, ""); // remove surrounding bold markers
-      sections.push({ title: cleanTitle, body: rawBody });
-      i += 2;
-    } else {
-      i++;
-    }
-  }
-
-  return sections.length > 0 ? sections : null;
-}
 
 type View = "form" | "loading" | "result";
 
@@ -126,12 +76,8 @@ export default function Home() {
   /* ── Loading screen ─────────────────────────────────────── */
   if (view === "loading") {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center px-4 bg-[var(--background)]">
-        <h1 className="text-4xl font-bold text-[#2196F3] tracking-tight mb-10">
-          KelanaAI
-        </h1>
+      <main className="flex-1 flex flex-col items-center justify-center px-4 bg-[var(--background)]">
         <div className="flex flex-col items-center gap-5">
-          {/* Spinner */}
           <div className="w-12 h-12 rounded-full border-4 border-[#e3f0fd] border-t-[#2196F3] animate-spin" />
           <p className="text-sm text-gray-400 tracking-wide">
             Generating your itinerary…
@@ -144,14 +90,7 @@ export default function Home() {
   /* ── Result screen ──────────────────────────────────────── */
   if (view === "result" && result) {
     return (
-      <main className="min-h-screen flex flex-col items-center px-4 py-16 bg-[var(--background)]">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <h1 className="text-4xl font-bold text-[#2196F3] tracking-tight">
-            KelanaAI
-          </h1>
-        </div>
-
+      <main className="flex-1 flex flex-col items-center px-4 py-10 bg-[var(--background)]">
         <div className="w-full max-w-lg flex flex-col gap-4">
           {/* Summary pill */}
           <div className="rounded-full bg-[#f0f4f8] px-6 py-3 flex items-center justify-between shadow-sm gap-4">
@@ -195,15 +134,17 @@ export default function Home() {
 
   /* ── Form screen (default) ──────────────────────────────── */
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-16 bg-[var(--background)]">
-      {/* Header */}
-      <div className="mb-10 text-center">
-        <h1 className="text-4xl font-bold text-[#2196F3] tracking-tight">
-          KelanaAI
-        </h1>
-        <p className="mt-2 text-sm text-gray-400 tracking-wide">
-          Plan your next adventure
+    <main className="flex-1 flex flex-col items-center justify-center px-4 py-10 bg-[var(--background)]">
+      {/* Subtitle */}
+      <div className="mb-10 text-center flex flex-col gap-2">
+        <h2 className="text-2xl font-bold text-[var(--foreground)] leading-snug">
+          Where will you go{" "}
+          <span className="text-[#2196F3]">next?</span>
+        </h2>
+        <p className="text-sm text-gray-400 italic">
+          "The world is a book, and those who do not travel read only one page."
         </p>
+        <p className="text-xs text-gray-300">— Saint Augustine</p>
       </div>
 
       {/* Form */}
@@ -300,7 +241,7 @@ export default function Home() {
           type="submit"
           className="mt-2 w-full rounded-2xl bg-[#2196F3] hover:bg-[#1976D2] active:bg-[#1565C0] text-white font-semibold text-sm tracking-wide py-4 transition-colors duration-150 shadow-sm cursor-pointer"
         >
-          Generate AI Trip
+          Plan a Trip
         </button>
       </form>
 
@@ -314,89 +255,4 @@ export default function Home() {
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  Day cards                                                                  */
-/* -------------------------------------------------------------------------- */
 
-const mdComponents: React.ComponentProps<typeof ReactMarkdown>["components"] = {
-  // Suppress any heading tags inside a day body — the card title handles that
-  h1: ({ children }) => (
-    <p className="font-semibold text-[var(--foreground)] mb-1">{children}</p>
-  ),
-  h2: ({ children }) => (
-    <p className="font-semibold text-[var(--foreground)] mb-1">{children}</p>
-  ),
-  h3: ({ children }) => (
-    <p className="font-semibold text-[var(--foreground)] mb-1">{children}</p>
-  ),
-  p: ({ children }) => (
-    <p className="text-sm text-[var(--foreground)] leading-relaxed mb-1 last:mb-0">
-      {children}
-    </p>
-  ),
-  ul: ({ children }) => (
-    <ul className="text-sm text-[var(--foreground)] space-y-1 mb-1 last:mb-0">
-      {children}
-    </ul>
-  ),
-  ol: ({ children }) => (
-    <ol className="text-sm text-[var(--foreground)] space-y-1 mb-1 last:mb-0 list-decimal list-inside">
-      {children}
-    </ol>
-  ),
-  // Custom bullet — replaces the browser default with a blue dot
-  li: ({ children }) => (
-    <li className="flex items-start gap-2 leading-relaxed">
-      <span className="mt-1.5 shrink-0 w-1.5 h-1.5 rounded-full bg-[#2196F3]" />
-      <span>{children}</span>
-    </li>
-  ),
-  strong: ({ children }) => (
-    <strong className="font-semibold text-[var(--foreground)]">{children}</strong>
-  ),
-  em: ({ children }) => (
-    <em className="italic text-gray-500">{children}</em>
-  ),
-  hr: () => <hr className="border-gray-200 my-2" />,
-  blockquote: ({ children }) => (
-    <blockquote className="border-l-4 border-[#2196F3] pl-3 italic text-gray-500 text-sm my-1">
-      {children}
-    </blockquote>
-  ),
-  code: ({ children }) => (
-    <code className="bg-white/70 rounded px-1 py-0.5 text-xs font-mono text-[#1565C0]">
-      {children}
-    </code>
-  ),
-};
-
-function DayCards({ text }: { text: string }) {
-  const sections = parseDaySections(text);
-
-  if (sections) {
-    return (
-      <>
-        {sections.map((section, idx) => (
-          <div
-            key={idx}
-            className="rounded-2xl bg-[#f0f4f8] px-5 py-4 shadow-sm flex flex-col gap-2"
-          >
-            <p className="font-bold text-[#2196F3] text-sm">{section.title}</p>
-            {section.body && (
-              <ReactMarkdown components={mdComponents}>
-                {section.body}
-              </ReactMarkdown>
-            )}
-          </div>
-        ))}
-      </>
-    );
-  }
-
-  // Fallback: single card with full markdown
-  return (
-    <div className="rounded-2xl bg-[#f0f4f8] px-5 py-4 shadow-sm">
-      <ReactMarkdown components={mdComponents}>{text}</ReactMarkdown>
-    </div>
-  );
-}
