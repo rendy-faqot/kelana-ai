@@ -1,22 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import DayCards from "@/components/DayCards";
+import { useRouter } from "next/navigation";
+import { type Trip } from "@/services/tripService";
 
 const TRAVEL_STYLES = ["Solo", "Couple", "Family", "Group", "Business"];
 
-type TripResult = {
-  id: number;
-  destination: string;
-  days: number;
-  budget: number;
-  category: string;
-  daily_budget: number;
-  ai_recommendation: string;
-  created_at: string;
-};
-
-type View = "form" | "loading" | "result";
+type View = "form" | "loading";
 
 export default function Home() {
   const [form, setForm] = useState({
@@ -25,7 +15,7 @@ export default function Home() {
     days: "",
     travelStyle: "",
   });
-  const [result, setResult] = useState<TripResult | null>(null);
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>("form");
 
@@ -38,7 +28,6 @@ export default function Home() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setResult(null);
     setView("loading");
 
     try {
@@ -58,19 +47,12 @@ export default function Home() {
         throw new Error(detail || `Request failed with status ${res.status}`);
       }
 
-      const data: TripResult = await res.json();
-      setResult(data);
-      setView("result");
+      const data: Trip = await res.json();
+      router.push(`/trips`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
       setView("form");
     }
-  }
-
-  function handleReset() {
-    setResult(null);
-    setError(null);
-    setView("form");
   }
 
   /* ── Loading screen ─────────────────────────────────────── */
@@ -82,51 +64,6 @@ export default function Home() {
           <p className="text-sm text-gray-400 tracking-wide">
             Generating your itinerary…
           </p>
-        </div>
-      </main>
-    );
-  }
-
-  /* ── Result screen ──────────────────────────────────────── */
-  if (view === "result" && result) {
-    return (
-      <main className="flex-1 flex flex-col items-center px-4 py-10 bg-[var(--background)]">
-        <div className="w-full max-w-lg flex flex-col gap-4">
-          {/* Summary pill */}
-          <div className="rounded-full bg-[#f0f4f8] px-6 py-3 flex items-center justify-between shadow-sm gap-4">
-            <span className="font-bold text-[var(--foreground)] whitespace-nowrap">
-              Destination: {result.destination}
-            </span>
-            <span className="text-gray-300 select-none">|</span>
-            <span className="font-bold text-[#2196F3] whitespace-nowrap">
-              {form.travelStyle}
-            </span>
-            <span className="text-gray-300 select-none">|</span>
-            <span className="font-bold text-[var(--foreground)] whitespace-nowrap">
-              Budget: USD {result.budget.toLocaleString()}
-            </span>
-          </div>
-
-          {/* AI Recommendation */}
-          {result.ai_recommendation && (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold uppercase tracking-widest text-[#2196F3]">
-                  AI Recommendation
-                </span>
-                <div className="flex-1 border-t border-gray-200" />
-              </div>
-              <DayCards text={result.ai_recommendation} />
-            </div>
-          )}
-
-          {/* Plan another trip */}
-          <button
-            onClick={handleReset}
-            className="mt-2 w-full rounded-2xl border border-[#2196F3] text-[#2196F3] hover:bg-[#e3f0fd] active:bg-[#bbdefb] font-semibold text-sm tracking-wide py-4 transition-colors duration-150 shadow-sm cursor-pointer"
-          >
-            Plan another trip
-          </button>
         </div>
       </main>
     );
