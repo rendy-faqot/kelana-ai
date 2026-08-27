@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from typing import Optional
 import os
 from dotenv import load_dotenv
@@ -10,6 +10,7 @@ from services.trip_service import (
     get_transportation_recommendation
 )
 from services.bedrock_service import get_ai_recommendation
+from services.auth_service import register_user
 from models.trip import Trip
 from database import SessionLocal, init_db
 
@@ -25,6 +26,18 @@ class TripUpdateRequest(BaseModel):
     budget:       Optional[float] = None
     days:         Optional[int]   = None
     travel_style: Optional[str]   = None
+
+class RegisterRequest(BaseModel):
+    name:     str
+    email:    str
+    password: str
+
+    @field_validator("email")
+    @classmethod
+    def email_must_contain_at(cls, v: str) -> str:
+        if "@" not in v or "." not in v.split("@")[-1]:
+            raise ValueError("Invalid email address")
+        return v.lower().strip()
 
 app = FastAPI()
 
@@ -51,6 +64,28 @@ def home():
   return {
     "message" : "Welcome to KelanaAI"
   }
+
+# POST endpoint — register a new user
+@app.post("/api/v1/auth/register", status_code=201)
+def register(request: RegisterRequest):
+    db = SessionLocal()
+    try:
+        user = register_user(
+            db       = db,
+            name     = request.name,
+            email    = request.email,
+            password = request.password,
+        )
+        return {
+            "id":         user.id,
+            "name":       user.name,
+            "email":      user.email,
+            "created_at": user.created_at,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    finally:
+        db.close()
 
 # POST endpoint — receives JSON, returns JSON
 @app.post("/api/v1/trips")
