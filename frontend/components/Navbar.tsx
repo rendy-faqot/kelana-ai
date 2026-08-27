@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 const NAV_LINKS = [
   { href: "/", label: "Plan a Trip" },
@@ -10,11 +10,20 @@ const NAV_LINKS = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
 
-  // /trips and /trips/[id] both count as "My Trips" being active
   function isActive(href: string) {
     if (href === "/") return pathname === "/";
     return pathname.startsWith(href);
+  }
+
+  function isLoggedIn() {
+    return !!localStorage.getItem("access_token");
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("access_token");
+    router.push("/login");
   }
 
   return (
@@ -28,7 +37,7 @@ export default function Navbar() {
           KelanaAI
         </Link>
 
-        {/* Nav links */}
+        {/* Nav links + logout */}
         <nav className="flex items-center gap-1" aria-label="Main navigation">
           {NAV_LINKS.map(({ href, label }) => (
             <Link
@@ -43,6 +52,15 @@ export default function Navbar() {
               {label}
             </Link>
           ))}
+
+          {isLoggedIn() && (
+            <button
+              onClick={handleLogout}
+              className="px-4 py-1.5 rounded-full text-sm font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 transition-colors duration-150 cursor-pointer"
+            >
+              Logout
+            </button>
+          )}
         </nav>
       </div>
     </header>
