@@ -2,14 +2,29 @@ import os
 import bcrypt
 import jwt
 from datetime import datetime, timedelta, timezone
+from fastapi import Depends, HTTPException
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from models.user import User
+from database import SessionLocal
 
 
 # ── JWT config ────────────────────────────────────────────────────────────────
-_SECRET_KEY  = os.getenv("JWT_SECRET_KEY", "k3L4na-4i")
+_SECRET_KEY  = os.getenv("JWT_SECRET_KEY", "change-me-to-a-long-random-secret")
 _ALGORITHM   = os.getenv("JWT_ALGORITHM",  "HS256")
 _EXPIRE_MINS = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
+
+_bearer_scheme = HTTPBearer()
+
+
+# ── DB session dependency ─────────────────────────────────────────────────────
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 # ── Password helpers ──────────────────────────────────────────────────────────
@@ -29,7 +44,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     )
 
 
-# ── Token helper ──────────────────────────────────────────────────────────────
+# ── Token helpers ─────────────────────────────────────────────────────────────
 
 def _create_access_token(user_id: int, email: str) -> str:
     """Create a signed JWT containing the user's id and email."""
@@ -39,6 +54,31 @@ def _create_access_token(user_id: int, email: str) -> str:
         "exp": datetime.now(timezone.utc) + timedelta(minutes=_EXPIRE_MINS),
     }
     return jwt.encode(payload, _SECRET_KEY, algorithm=_ALGORITHM)
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer_scheme),
+) -> User:
+    """
+    FastAPI dependency — decode the Bearer JWT and return the matching User.
+    Raises HTTP 401 if the token is missing, invalid, or expired.
+    """
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, _SECRET_KEY, algorithms=[_ALGORITHM])
+        user_id = int(payload["sub"])
+    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, KeyError):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == user_id).first()
+    finally:
+        db.close()
+
+    if user is None:
+        raise HTTPException(status_code=401, detail="User not found")
+    return user
 
 
 # ── Auth operations ───────────────────────────────────────────────────────────

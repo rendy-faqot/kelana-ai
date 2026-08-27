@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 from typing import Optional
@@ -10,17 +10,21 @@ from services.trip_service import (
     get_transportation_recommendation
 )
 from services.bedrock_service import get_ai_recommendation
-from services.auth_service import register_user, login_user
+from services.auth_service import register_user, login_user, get_current_user
 from models.trip import Trip
+from models.user import User
 from database import SessionLocal, init_db
 
 load_dotenv()
 
+
+# ── Request schemas ───────────────────────────────────────────────────────────
+
 class TripRequest(BaseModel):
-	destination: 	str
-	days: 		    int
-	budget:		    float
-	travel_style:	str
+    destination:  str
+    days:         int
+    budget:       float
+    travel_style: str
 
 class TripUpdateRequest(BaseModel):
     budget:       Optional[float] = None
@@ -50,6 +54,9 @@ class LoginRequest(BaseModel):
             raise ValueError("Invalid email address")
         return v.lower().strip()
 
+
+# ── App setup ─────────────────────────────────────────────────────────────────
+
 app = FastAPI()
 
 app.add_middleware(
@@ -62,21 +69,17 @@ app.add_middleware(
 
 init_db()
 
-# a GET endpoint for health
+
+# ── Public endpoints ──────────────────────────────────────────────────────────
+
 @app.get("/health")
 def health():
-  return {
-    "status" : "OK"
-  }
+    return {"status": "OK"}
 
-# a GET endpoint at the root path
 @app.get("/")
 def home():
-  return {
-    "message" : "Welcome to KelanaAI"
-  }
+    return {"message": "Welcome to KelanaAI"}
 
-# POST endpoint — register a new user
 @app.post("/api/v1/auth/register", status_code=201)
 def register(request: RegisterRequest):
     db = SessionLocal()
@@ -98,7 +101,6 @@ def register(request: RegisterRequest):
     finally:
         db.close()
 
-# POST endpoint — login and receive a JWT
 @app.post("/api/v1/auth/login")
 def login(request: LoginRequest):
     db = SessionLocal()
@@ -109,23 +111,24 @@ def login(request: LoginRequest):
     finally:
         db.close()
 
-# POST endpoint — receives JSON, returns JSON
+
+# ── Protected trip endpoints ──────────────────────────────────────────────────
+
 @app.post("/api/v1/trips")
-def create_trip(request: TripRequest):
-    daily_budget = calculate_daily_budget(
-        request.budget, request.days
-    )
-    category = get_trip_category(
-        request.budget
-    )
+def create_trip(
+    request: TripRequest,
+    current_user: User = Depends(get_current_user),
+):
+    daily_budget = calculate_daily_budget(request.budget, request.days)
+    category     = get_trip_category(request.budget)
     ai_recommendation = get_ai_recommendation(
-        destination=request.destination,
-        days=request.days,
-        budget=request.budget,
-        travel_style=request.travel_style,
+        destination  = request.destination,
+        days         = request.days,
+        budget       = request.budget,
+        travel_style = request.travel_style,
     )
-    # create a Trip ORM object
     trip = Trip(
+        user_id           = current_user.id,
         destination       = request.destination,
         days              = request.days,
         budget            = request.budget,
@@ -134,66 +137,80 @@ def create_trip(request: TripRequest):
         daily_budget      = daily_budget,
         ai_recommendation = ai_recommendation,
     )
-
-    #save to PostgreSQL
     db = SessionLocal()
-    db.add(trip)
-    db.commit()
-    db.refresh(trip)   # get the auto-generated id
-    db.close()
-    return trip
+    try:
+        db.add(trip)
+        db.commit()
+        db.refresh(trip)
+        return trip
+    finally:
+        db.close()
 
 @app.get("/api/v1/trips")
-def list_trips():
+def list_trips(current_user: User = Depends(get_current_user)):
     db = SessionLocal()
-    trips = db.query(Trip).all()
-    db.close()
-    return trips
+    try:
+        return db.query(Trip).filter(Trip.user_id == current_user.id).all()
+    finally:
+        db.close()
 
 @app.get("/api/v1/trips/{trip_id}")
-def get_trip(trip_id: int):
+def get_trip(trip_id: int, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
-    trip = db.query(Trip).filter(Trip.id == trip_id).first()
-    db.close()
+    try:
+        trip = db.query(Trip).filter(
+            Trip.id == trip_id,
+            Trip.user_id == current_user.id,
+        ).first()
+    finally:
+        db.close()
     if trip is None:
-        raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
+        raise HTTPException(status_code=404, detail=f"Trip {trip_id} not found")
     return trip
 
-# PUT endpoint — update budget/days/travel_style, recalculate derived fields
 @app.put("/api/v1/trips/{trip_id}")
-def update_trip(trip_id: int, request: TripUpdateRequest):
+def update_trip(
+    trip_id: int,
+    request: TripUpdateRequest,
+    current_user: User = Depends(get_current_user),
+):
     db = SessionLocal()
-    trip = db.query(Trip).filter(Trip.id == trip_id).first()
-    if trip is None:
+    try:
+        trip = db.query(Trip).filter(
+            Trip.id == trip_id,
+            Trip.user_id == current_user.id,
+        ).first()
+        if trip is None:
+            raise HTTPException(status_code=404, detail=f"Trip {trip_id} not found")
+
+        if request.budget is not None:
+            trip.budget = request.budget
+        if request.days is not None:
+            trip.days = request.days
+        if request.travel_style is not None:
+            trip.travel_style = request.travel_style
+
+        trip.daily_budget = calculate_daily_budget(trip.budget, trip.days)
+        trip.category     = get_trip_category(trip.budget)
+
+        db.commit()
+        db.refresh(trip)
+        return trip
+    finally:
         db.close()
-        raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
 
-    if request.budget is not None:
-        trip.budget = request.budget
-    if request.days is not None:
-        trip.days = request.days
-    if request.travel_style is not None:
-        trip.travel_style = request.travel_style
-
-    # recalculate derived fields
-    trip.daily_budget = calculate_daily_budget(trip.budget, trip.days)
-    trip.category     = get_trip_category(trip.budget)
-
-    db.commit()
-    db.refresh(trip)
-    db.close()
-    return trip
-
-# DELETE endpoint — remove a trip by id
 @app.delete("/api/v1/trips/{trip_id}")
-def delete_trip(trip_id: int):
+def delete_trip(trip_id: int, current_user: User = Depends(get_current_user)):
     db = SessionLocal()
-    trip = db.query(Trip).filter(Trip.id == trip_id).first()
-    if trip is None:
+    try:
+        trip = db.query(Trip).filter(
+            Trip.id == trip_id,
+            Trip.user_id == current_user.id,
+        ).first()
+        if trip is None:
+            raise HTTPException(status_code=404, detail=f"Trip {trip_id} not found")
+        db.delete(trip)
+        db.commit()
+        return {"message": f"Trip {trip_id} deleted successfully"}
+    finally:
         db.close()
-        raise HTTPException(status_code=404, detail=f"Trip with id {trip_id} not found")
-
-    db.delete(trip)
-    db.commit()
-    db.close()
-    return {"message": f"Trip with id {trip_id} deleted successfully"}
