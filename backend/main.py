@@ -10,7 +10,7 @@ from services.trip_service import (
     get_transportation_recommendation
 )
 from services.bedrock_service import get_ai_recommendation
-from services.auth_service import register_user
+from services.auth_service import register_user, login_user
 from models.trip import Trip
 from database import SessionLocal, init_db
 
@@ -29,6 +29,17 @@ class TripUpdateRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     name:     str
+    email:    str
+    password: str
+
+    @field_validator("email")
+    @classmethod
+    def email_must_contain_at(cls, v: str) -> str:
+        if "@" not in v or "." not in v.split("@")[-1]:
+            raise ValueError("Invalid email address")
+        return v.lower().strip()
+
+class LoginRequest(BaseModel):
     email:    str
     password: str
 
@@ -84,6 +95,17 @@ def register(request: RegisterRequest):
         }
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
+    finally:
+        db.close()
+
+# POST endpoint — login and receive a JWT
+@app.post("/api/v1/auth/login")
+def login(request: LoginRequest):
+    db = SessionLocal()
+    try:
+        return login_user(db=db, email=request.email, password=request.password)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
     finally:
         db.close()
 
