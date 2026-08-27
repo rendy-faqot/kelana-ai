@@ -112,6 +112,22 @@ def login(request: LoginRequest):
         db.close()
 
 
+@app.get("/api/v1/auth/me")
+def me(current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        trip_count = db.query(Trip).filter(Trip.user_id == current_user.id).count()
+    finally:
+        db.close()
+    return {
+        "id":          current_user.id,
+        "name":        current_user.name,
+        "email":       current_user.email,
+        "created_at":  current_user.created_at,
+        "total_trips": trip_count,
+    }
+
+
 # ── Protected trip endpoints ──────────────────────────────────────────────────
 
 @app.post("/api/v1/trips")

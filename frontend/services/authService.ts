@@ -30,6 +30,27 @@ export async function login(
   return res.json();
 }
 
+export interface MeResponse {
+  id: number;
+  name: string;
+  email: string;
+  created_at: string;
+  total_trips: number;
+}
+
+export async function getMe(token: string): Promise<MeResponse> {
+  const res = await fetch(`${API_URL}/api/v1/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.detail ?? `Failed to fetch profile (${res.status})`);
+  }
+
+  return res.json();
+}
+
 export async function register(
   name: string,
   email: string,
