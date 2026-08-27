@@ -63,8 +63,11 @@ export default function LoginPage() {
     password: "",
     confirmPassword: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [serverError, setServerError] = useState<string | null>(null);
+
   const [pending, setPending] = useState(false);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -80,6 +83,8 @@ export default function LoginPage() {
     setMode(next);
     setFieldErrors({});
     setServerError(null);
+    setShowPassword(false);
+    setShowConfirm(false);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -117,15 +122,15 @@ export default function LoginPage() {
       <div className="mb-8 text-center flex flex-col gap-1">
         <h2 className="text-2xl font-bold text-[var(--foreground)]">
           {mode === "login" ? (
-            <>Welcome <span className="text-[#2196F3]">back</span></>
+            <>Your next adventure <span className="text-[#2196F3]">awaits.</span></>
           ) : (
-            <>Create an <span className="text-[#2196F3]">account</span></>
+            <>The world is yours to <span className="text-[#2196F3]">explore.</span></>
           )}
         </h2>
         <p className="text-sm text-gray-400">
           {mode === "login"
-            ? "Sign in to access your trips."
-            : "Start planning your next adventure."}
+            ? "Sign in and pick up where you left off."
+            : "Create an account to start planning."}
         </p>
       </div>
 
@@ -196,16 +201,36 @@ export default function LoginPage() {
             >
               Password
             </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              placeholder="Min. 8 characters"
-              value={form.password}
-              onChange={handleChange}
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              className="bg-transparent text-base text-[var(--foreground)] placeholder-gray-400 outline-none"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                id="password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Min. 8 characters"
+                value={form.password}
+                onChange={handleChange}
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                className="flex-1 bg-transparent text-base text-[var(--foreground)] placeholder-gray-400 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="text-gray-400 hover:text-[#2196F3] transition-colors duration-150 cursor-pointer"
+              >
+                {showPassword ? (
+                  // Eye-off
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+                    <path d="M2.22 2.22a.75.75 0 0 0 0 1.06l1.56 1.56C2.27 6.18 1 8.32 1 12c0 5 4.48 9 10 9a11.1 11.1 0 0 0 6.16-1.84l1.62 1.62a.75.75 0 1 0 1.06-1.06l-18-18a.75.75 0 0 0-1.06 0ZM12 19c-4.41 0-8-3.36-8-7 0-2.48.97-4.35 2.54-5.69L8.3 8.07A5 5 0 0 0 12 17a4.98 4.98 0 0 0 3.47-1.41l1.28 1.28A9.58 9.58 0 0 1 12 19Zm7.46-3.27-1.43-1.43A7.8 7.8 0 0 0 20 12c0-3.64-3.59-7-8-7a9.5 9.5 0 0 0-2.85.44L7.62 3.91A10.9 10.9 0 0 1 12 3c5.52 0 10 4 10 9a9.84 9.84 0 0 1-2.54 6.73ZM12 7a5 5 0 0 1 4.47 7.24l-6.7-6.7A4.97 4.97 0 0 1 12 7Z"/>
+                  </svg>
+                ) : (
+                  // Eye
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+                    <path d="M12 5C7 5 2.73 8.11 1 12c1.73 3.89 6 7 11 7s9.27-3.11 11-7c-1.73-3.89-6-7-11-7Zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10Zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/>
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
           {fieldErrors.password && (
             <p className="text-xs text-red-500 px-1">{fieldErrors.password}</p>
@@ -222,16 +247,34 @@ export default function LoginPage() {
               >
                 Confirm Password
               </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                placeholder="Repeat your password"
-                value={form.confirmPassword}
-                onChange={handleChange}
-                autoComplete="new-password"
-                className="bg-transparent text-base text-[var(--foreground)] placeholder-gray-400 outline-none"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={showConfirm ? "text" : "password"}
+                  placeholder="Repeat your password"
+                  value={form.confirmPassword}
+                  onChange={handleChange}
+                  autoComplete="new-password"
+                  className="flex-1 bg-transparent text-base text-[var(--foreground)] placeholder-gray-400 outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm((v) => !v)}
+                  aria-label={showConfirm ? "Hide password" : "Show password"}
+                  className="text-gray-400 hover:text-[#2196F3] transition-colors duration-150 cursor-pointer"
+                >
+                  {showConfirm ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+                      <path d="M2.22 2.22a.75.75 0 0 0 0 1.06l1.56 1.56C2.27 6.18 1 8.32 1 12c0 5 4.48 9 10 9a11.1 11.1 0 0 0 6.16-1.84l1.62 1.62a.75.75 0 1 0 1.06-1.06l-18-18a.75.75 0 0 0-1.06 0ZM12 19c-4.41 0-8-3.36-8-7 0-2.48.97-4.35 2.54-5.69L8.3 8.07A5 5 0 0 0 12 17a4.98 4.98 0 0 0 3.47-1.41l1.28 1.28A9.58 9.58 0 0 1 12 19Zm7.46-3.27-1.43-1.43A7.8 7.8 0 0 0 20 12c0-3.64-3.59-7-8-7a9.5 9.5 0 0 0-2.85.44L7.62 3.91A10.9 10.9 0 0 1 12 3c5.52 0 10 4 10 9a9.84 9.84 0 0 1-2.54 6.73ZM12 7a5 5 0 0 1 4.47 7.24l-6.7-6.7A4.97 4.97 0 0 1 12 7Z"/>
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+                      <path d="M12 5C7 5 2.73 8.11 1 12c1.73 3.89 6 7 11 7s9.27-3.11 11-7c-1.73-3.89-6-7-11-7Zm0 12a5 5 0 1 1 0-10 5 5 0 0 1 0 10Zm0-8a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/>
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
             {fieldErrors.confirmPassword && (
               <p className="text-xs text-red-500 px-1">

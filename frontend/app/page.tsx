@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { type Trip } from "@/services/tripService";
 
@@ -19,6 +19,13 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<View>("form");
 
+  // Guard: redirect to /login if not authenticated
+  useEffect(() => {
+    if (!localStorage.getItem("access_token")) {
+      router.replace("/login");
+    }
+  }, [router]);
+
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) {
@@ -31,9 +38,13 @@ export default function Home() {
     setView("loading");
 
     try {
+      const token = localStorage.getItem("access_token");
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/trips`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           destination: form.destination,
           budget: Number(form.budget),
