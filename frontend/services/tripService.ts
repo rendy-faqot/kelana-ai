@@ -19,26 +19,34 @@ export interface GenerateTripData {
   travel_style: string;
 }
 
-export async function getTrips(): Promise<Trip[]> {
-  const res = await fetch(`${API_URL}/api/v1/trips`);
+function authHeaders(token: string): Record<string, string> {
+  return { Authorization: `Bearer ${token}` };
+}
+
+export async function getTrips(token: string): Promise<Trip[]> {
+  const res = await fetch(`${API_URL}/api/v1/trips`, {
+    headers: authHeaders(token),
+  });
   if (!res.ok) {
     throw new Error(`Failed to fetch trips: ${res.status} ${res.statusText}`);
   }
   return res.json();
 }
 
-export async function getTrip(id: number): Promise<Trip> {
-  const res = await fetch(`${API_URL}/api/v1/trips/${id}`);
+export async function getTrip(id: number, token: string): Promise<Trip> {
+  const res = await fetch(`${API_URL}/api/v1/trips/${id}`, {
+    headers: authHeaders(token),
+  });
   if (!res.ok) {
     throw new Error(`Failed to fetch trip ${id}: ${res.status} ${res.statusText}`);
   }
   return res.json();
 }
 
-export async function generateTrip(data: GenerateTripData): Promise<Trip> {
+export async function generateTrip(data: GenerateTripData, token: string): Promise<Trip> {
   const res = await fetch(`${API_URL}/api/v1/trips`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
     body: JSON.stringify(data),
   });
   if (!res.ok) {

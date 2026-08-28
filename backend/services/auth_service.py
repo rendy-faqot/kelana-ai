@@ -10,7 +10,7 @@ from database import SessionLocal
 
 
 # ── JWT config ────────────────────────────────────────────────────────────────
-_SECRET_KEY  = os.getenv("JWT_SECRET_KEY", "change-me-to-a-long-random-secret")
+_SECRET_KEY  = os.getenv("JWT_SECRET_KEY", "k3L4na-s3cret")
 _ALGORITHM   = os.getenv("JWT_ALGORITHM",  "HS256")
 _EXPIRE_MINS = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
 
