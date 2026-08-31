@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 
 const NAV_LINKS = [
   { href: "/", label: "Plan a Trip" },
+  { href: "/assistant", label: "Ask" },
   { href: "/trips", label: "My Trips" },
 ];
 
@@ -18,8 +19,12 @@ export default function Navbar() {
 
   // Sync login state on every route change
   useEffect(() => {
-    setLoggedIn(!!localStorage.getItem("access_token"));
-    setMenuOpen(false);
+    const syncMenu = window.setTimeout(() => {
+      setLoggedIn(!!localStorage.getItem("access_token"));
+      setMenuOpen(false);
+    }, 0);
+
+    return () => window.clearTimeout(syncMenu);
   }, [pathname]);
 
   // Close dropdown when clicking outside
