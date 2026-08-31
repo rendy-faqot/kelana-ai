@@ -135,10 +135,14 @@ def me(current_user: User = Depends(get_current_user)):
 @app.post("/api/v1/ask")
 def ask(request: AskRequest):
     try:
-        answer = retrieve_and_generate(request.question)
+        result = retrieve_and_generate(request.question)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return {"question": request.question, "answer": answer}
+    return {
+        "question": request.question,
+        "answer": result["answer"],
+        "source": result["source"],
+    }
 
 
 # ── Protected trip endpoints ──────────────────────────────────────────────────

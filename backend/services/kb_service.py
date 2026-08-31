@@ -25,7 +25,7 @@ def get_bedrock_agent_runtime_client():
     )
 
 
-def retrieve_and_generate(query: str) -> str:
+def retrieve_and_generate(query: str) -> dict:
     """
     Retrieve relevant content from the Bedrock Knowledge Base.
 
@@ -35,7 +35,7 @@ def retrieve_and_generate(query: str) -> str:
         query: The user's question.
 
     Returns:
-        The retrieved text snippets joined as a single string.
+        The retrieved text snippets and their source information.
 
     Raises:
         ValueError: If required environment variables are missing.
@@ -66,9 +66,32 @@ def retrieve_and_generate(query: str) -> str:
         },
     )
 
-    snippets = [
-        result.get("content", {}).get("text", "").strip()
-        for result in response.get("retrievalResults", [])
-        if result.get("content", {}).get("text", "").strip()
-    ]
-    return "\n\n".join(snippets)
+    results = response.get("retrievalResults", [])
+    snippets = []
+    sources = []
+    seen_sources = set()
+
+    for result in results:
+        content = result.get("content", {})
+        text = content.get("text", "").strip()
+        if text:
+            snippets.append(text)
+
+        source_key = result.get("documentId") or repr(result.get("location"))
+        if source_key in seen_sources:
+            continue
+
+        seen_sources.add(source_key)
+        sources.append(
+            {
+                "document_id": result.get("documentId"),
+                "location": result.get("location"),
+                "metadata": result.get("metadata", {}),
+                "score": result.get("score"),
+            }
+        )
+
+    return {
+        "answer": "\n\n".join(snippets),
+        "source": sources,
+    }
