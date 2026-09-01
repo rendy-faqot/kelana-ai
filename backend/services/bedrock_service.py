@@ -95,3 +95,38 @@ def get_ai_recommendation(
         if "text" in block
     ]
     return "\n".join(text_parts)
+
+
+def get_chat_response(prompt: list[dict[str, str]]) -> str:
+    """
+    Call Amazon Bedrock with conversational history and return the assistant
+    response as a plain string.
+
+    Args:
+        prompt: Conversation history as role/content dictionaries.
+
+    Returns:
+        The model's text response.
+    """
+    client = get_bedrock_client()
+
+    messages = [
+        {
+            "role": item["role"],
+            "content": [{"text": item["content"]}],
+        }
+        for item in prompt
+    ]
+
+    response = client.converse(
+        modelId=MODEL_ID,
+        messages=messages,
+    )
+
+    output_message = response["output"]["message"]
+    text_parts = [
+        block["text"]
+        for block in output_message["content"]
+        if "text" in block
+    ]
+    return "\n".join(text_parts)

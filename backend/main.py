@@ -9,11 +9,12 @@ from services.trip_service import (
     get_trip_category,
     get_transportation_recommendation
 )
-from services.bedrock_service import get_ai_recommendation
+from services.bedrock_service import get_ai_recommendation, get_chat_response
 from services.kb_service import retrieve_and_generate
 from services.auth_service import register_user, login_user, get_current_user
 from models.trip import Trip
 from models.user import User
+from models.conversation import Conversation, Message
 from database import SessionLocal, init_db
 
 load_dotenv()
@@ -57,6 +58,9 @@ class LoginRequest(BaseModel):
 
 class AskRequest(BaseModel):
     question: str
+
+class MessageRequest(BaseModel):
+    content: str
 
 
 # ── App setup ─────────────────────────────────────────────────────────────────
@@ -143,6 +147,116 @@ def ask(request: AskRequest):
         "answer": result["answer"],
         "source": result["source"],
     }
+
+
+# ── Protected conversation endpoints ─────────────────────────────────────────
+
+@app.post("/api/v1/conversations", status_code=201)
+def create_conversation(current_user: User = Depends(get_current_user)):
+    conversation = Conversation(user_id=current_user.id)
+    db = SessionLocal()
+    try:
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
+        return {"conversation_id": conversation.id}
+    finally:
+        db.close()
+
+@app.get("/api/v1/conversations")
+def list_conversations(current_user: User = Depends(get_current_user)):
+    db = SessionLocal()
+    try:
+        return db.query(Conversation).filter(
+            Conversation.user_id == current_user.id,
+        ).all()
+    finally:
+        db.close()
+
+@app.post("/api/v1/conversations/{conversation_id}/messages", status_code=201)
+def create_conversation_message(
+    conversation_id: int,
+    request: MessageRequest,
+    current_user: User = Depends(get_current_user),
+):
+    db = SessionLocal()
+    try:
+        conversation = db.query(Conversation).filter(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id,
+        ).first()
+        if conversation is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Conversation {conversation_id} not found",
+            )
+
+        user_message = Message(
+            conversation_id=conversation.id,
+            role="user",
+            content=request.content,
+        )
+        db.add(user_message)
+        db.flush()
+
+        messages = db.query(Message).filter(
+            Message.conversation_id == conversation.id,
+        ).order_by(Message.created_at, Message.id).all()
+        prompt = [
+            {
+                "role": message.role,
+                "content": message.content,
+            }
+            for message in messages
+        ]
+
+        answer = get_chat_response(prompt)
+        assistant_message = Message(
+            conversation_id=conversation.id,
+            role="assistant",
+            content=answer,
+        )
+        db.add(assistant_message)
+        db.commit()
+        db.refresh(user_message)
+        db.refresh(assistant_message)
+        return {
+            "conversation_id": conversation.id,
+            "message_id": user_message.id,
+            "assistant_message_id": assistant_message.id,
+            "answer": answer,
+        }
+    except ValueError as e:
+        db.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception:
+        db.rollback()
+        raise
+    finally:
+        db.close()
+
+@app.get("/api/v1/conversations/{conversation_id}/messages")
+def list_conversation_messages(
+    conversation_id: int,
+    current_user: User = Depends(get_current_user),
+):
+    db = SessionLocal()
+    try:
+        conversation = db.query(Conversation).filter(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id,
+        ).first()
+        if conversation is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Conversation {conversation_id} not found",
+            )
+
+        return db.query(Message).filter(
+            Message.conversation_id == conversation.id,
+        ).order_by(Message.created_at, Message.id).all()
+    finally:
+        db.close()
 
 
 # ── Protected trip endpoints ──────────────────────────────────────────────────

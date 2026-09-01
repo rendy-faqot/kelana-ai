@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 const NAV_LINKS = [
   { href: "/", label: "Plan a Trip" },
   { href: "/assistant", label: "Ask" },
+  { href: "/chat", label: "Chat" },
   { href: "/trips", label: "My Trips" },
 ];
 
