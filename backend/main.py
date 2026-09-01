@@ -62,6 +62,17 @@ class AskRequest(BaseModel):
 class MessageRequest(BaseModel):
     content: str
 
+class ConversationUpdateRequest(BaseModel):
+    title: str
+
+    @field_validator("title")
+    @classmethod
+    def title_must_not_be_blank(cls, v: str) -> str:
+        title = v.strip()
+        if not title:
+            raise ValueError("Conversation title is required")
+        return title[:100]
+
 
 # ── App setup ─────────────────────────────────────────────────────────────────
 
@@ -173,6 +184,54 @@ def list_conversations(current_user: User = Depends(get_current_user)):
     finally:
         db.close()
 
+@app.put("/api/v1/conversations/{conversation_id}")
+def update_conversation(
+    conversation_id: int,
+    request: ConversationUpdateRequest,
+    current_user: User = Depends(get_current_user),
+):
+    db = SessionLocal()
+    try:
+        conversation = db.query(Conversation).filter(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id,
+        ).first()
+        if conversation is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Conversation {conversation_id} not found",
+            )
+
+        conversation.title = request.title
+        db.commit()
+        db.refresh(conversation)
+        return conversation
+    finally:
+        db.close()
+
+@app.delete("/api/v1/conversations/{conversation_id}")
+def delete_conversation(
+    conversation_id: int,
+    current_user: User = Depends(get_current_user),
+):
+    db = SessionLocal()
+    try:
+        conversation = db.query(Conversation).filter(
+            Conversation.id == conversation_id,
+            Conversation.user_id == current_user.id,
+        ).first()
+        if conversation is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Conversation {conversation_id} not found",
+            )
+
+        db.delete(conversation)
+        db.commit()
+        return {"message": f"Conversation {conversation_id} deleted successfully"}
+    finally:
+        db.close()
+
 @app.post("/api/v1/conversations/{conversation_id}/messages", status_code=201)
 def create_conversation_message(
     conversation_id: int,
@@ -197,6 +256,8 @@ def create_conversation_message(
             content=request.content,
         )
         db.add(user_message)
+        if not conversation.title:
+            conversation.title = request.content.strip()[:100]
         db.flush()
 
         messages = db.query(Message).filter(

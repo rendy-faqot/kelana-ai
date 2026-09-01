@@ -3,6 +3,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 export interface Conversation {
   id: number;
   user_id: number;
+  title: string | null;
   created_at: string;
 }
 
@@ -54,6 +55,41 @@ export async function createConversation(token: string): Promise<number> {
 
   const data = (await res.json()) as { conversation_id: number };
   return data.conversation_id;
+}
+
+export async function renameConversation(
+  conversationId: number,
+  title: string,
+  token: string
+): Promise<Conversation> {
+  const res = await fetch(`${API_URL}/api/v1/conversations/${conversationId}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(token),
+    },
+    body: JSON.stringify({ title }),
+  });
+
+  if (!res.ok) {
+    throw await parseError(res, `Failed to rename conversation (${res.status})`);
+  }
+
+  return res.json();
+}
+
+export async function deleteConversation(
+  conversationId: number,
+  token: string
+): Promise<void> {
+  const res = await fetch(`${API_URL}/api/v1/conversations/${conversationId}`, {
+    method: "DELETE",
+    headers: authHeaders(token),
+  });
+
+  if (!res.ok) {
+    throw await parseError(res, `Failed to delete conversation (${res.status})`);
+  }
 }
 
 export async function getMessages(
